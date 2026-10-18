@@ -19,6 +19,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,13 +39,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request' && env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Compute tags
         id: tags
         run: |
-          image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-          tags="$image:${{ matrix.php }},$image:${{ matrix.php }}-$(date -u +%Y%m%d)"
-          if [ "${{ matrix.php }}" = "$LATEST_PHP" ]; then tags="$tags,$image:latest"; fi
-          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          images=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          if [ -n "$DOCKERHUB_USERNAME" ]; then
+            images="$images docker.io/$(echo "$DOCKERHUB_USERNAME" | tr '[:upper:]' '[:lower:]')/laravel-apache-php"
+          fi
+          tags=""
+          for image in $images; do
+            tags="$tags,$image:${{ matrix.php }},$image:${{ matrix.php }}-$(date -u +%Y%m%d)"
+            if [ "${{ matrix.php }}" = "$LATEST_PHP" ]; then tags="$tags,$image:latest"; fi
+          done
+          echo "tags=${tags#,}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
