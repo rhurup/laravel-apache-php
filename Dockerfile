@@ -2,7 +2,7 @@
 #
 # Apache2 (mpm_event) + PHP-FPM + Composer + Node, built for Laravel.
 # The PHP version is a build arg, so one Dockerfile builds every version:
-#   docker build --build-arg PHP_VERSION=8.3 -t apache-php:8.3 .
+#   docker build --build-arg PHP_VERSION=8.3 -t laravel-apache-php:8.3 .
 
 ARG NODE_VERSION=22
 ARG COMPOSER_VERSION=2
@@ -20,7 +20,7 @@ ARG GROUP_ID=1000
 ARG PHP_EXTENSIONS="bcmath cli curl fpm gd imagick intl mbstring mcrypt mongodb mysql opcache pcov readline redis soap sqlite3 uuid xml xsl yaml zip"
 ARG DEBIAN_FRONTEND=noninteractive
 
-LABEL org.opencontainers.image.title="apache-php" \
+LABEL org.opencontainers.image.title="laravel-apache-php" \
       org.opencontainers.image.description="Apache2 (mpm_event) + PHP-FPM + Composer + Node for Laravel" \
       org.opencontainers.image.authors="rasmus@huruphansen.dk"
 

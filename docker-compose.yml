@@ -2,7 +2,7 @@
 services:
   laravel:
     container_name: laravel
-    image: ghcr.io/rhurup/apache-php:8.4
+    image: ghcr.io/rhurup/laravel-apache-php:8.4
     restart: always
     volumes:
       - "./www:/var/www/:rw"

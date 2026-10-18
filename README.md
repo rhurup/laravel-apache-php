@@ -1,4 +1,4 @@
-# apache-php
+# laravel-apache-php
 
 Docker image for Laravel (and plain PHP) apps: **Apache 2.4 (mpm_event) + PHP-FPM + Composer + Node**, on Ubuntu 24.04 with PHP from the [ondrej/php PPA](https://launchpad.net/~ondrej/+archive/ubuntu/php).
 
@@ -11,7 +11,7 @@ Docker image for Laravel (and plain PHP) apps: **Apache 2.4 (mpm_event) + PHP-FP
 ## Usage
 
 ```bash
-docker run -d -p 8080:8080 -v "$PWD:/var/www" ghcr.io/rhurup/apache-php:8.4
+docker run -d -p 8080:8080 -v "$PWD:/var/www" ghcr.io/rhurup/laravel-apache-php:8.4
 ```
 
 If `/var/www/artisan` exists, the docroot is `/var/www/public` (Laravel). If it doesn't, the docroot is `/var/www`. See [docker-compose.yml](docker-compose.yml) for a fuller example with Redis.
@@ -27,7 +27,7 @@ If `/var/www/artisan` exists, the docroot is `/var/www/public` (Laravel). If it 
 ### Build your own
 
 ```bash
-docker build --build-arg PHP_VERSION=8.5 --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t apache-php:8.5 .
+docker build --build-arg PHP_VERSION=8.5 --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t laravel-apache-php:8.5 .
 ```
 
 | Build arg | Default | |

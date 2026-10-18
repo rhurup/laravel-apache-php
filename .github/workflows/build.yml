@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/apache-php
+  IMAGE: ghcr.io/${{ github.repository_owner }}/laravel-apache-php
   LATEST_PHP: "8.4"
 
 jobs:
