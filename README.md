@@ -11,8 +11,10 @@ Docker image for Laravel (and plain PHP) apps: **Apache 2.4 (mpm_event) + PHP-FP
 ## Usage
 
 ```bash
-docker run -d -p 8080:8080 -v "$PWD:/var/www" ghcr.io/rhurup/laravel-apache-php:8.4
+docker run -d -p 8080:8080 -v "$PWD:/var/www" rhuruphansen/laravel-apache-php:8.4
 ```
+
+Images are published to both [Docker Hub](https://hub.docker.com/r/rhuruphansen/laravel-apache-php) (`rhuruphansen/laravel-apache-php`) and GHCR (`ghcr.io/rhurup/laravel-apache-php`), with the same tags.
 
 If `/var/www/artisan` exists, the docroot is `/var/www/public` (Laravel). If it doesn't, the docroot is `/var/www`. See [docker-compose.yml](docker-compose.yml) for a fuller example with Redis.
 
