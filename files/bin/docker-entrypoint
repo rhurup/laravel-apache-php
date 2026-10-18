@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Prepares /var/www (git, .env, composer, migrations, startup script), then
+# execs the CMD (supervisord by default). Runs as www-data, no sudo.
+set -uo pipefail
+
+APP_DIR=/var/www
+
+log() { echo " >> $*"; }
+section() { echo "----------- $* -----------"; }
+is_true() { [[ ${1,,} =~ ^(1|true|yes|on)$ ]]; }
+bool() { is_true "$1" && echo true || echo false; }
+# Hide credentials in URLs like https://user:token@github.com/...
+mask_url() { sed -E 's#(://)[^/@]+@#\1***@#' <<<"$1"; }
+
+cd "$APP_DIR" || exit 1
+
+section "System start"
+log "User: $(id -un) ($(id -u):$(id -g))"
+log "PHP: $(php -r 'echo PHP_VERSION;')"
+
+
+for key in "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa"; do
+  if [[ -f $key ]]; then
+    section "SSH keys"
+    eval "$(ssh-agent -s)" >/dev/null
+    ssh-add "$key"
+    [[ -f $key.pub ]] && { log "Public SSH key:"; cat "$key.pub"; }
+    break
+  fi
+done
+
+
+section "Git configuration"
+GIT_REPO_URI=${GIT_REPO_URI:-}
+GIT_REPO_BRANCH=${GIT_REPO_BRANCH:-}
+if [[ -z $GIT_REPO_URI ]]; then
+  log "Git configuration skipped (no repository defined)"
+elif [[ -z $GIT_REPO_BRANCH ]]; then
+  log "Git configuration skipped (no branch defined)"
+elif [[ -d $APP_DIR/.git ]]; then
+  log "Repository exists, fetching & doing a hard reset to origin/$GIT_REPO_BRANCH"
+  git fetch origin "$GIT_REPO_BRANCH" && git reset --hard "origin/$GIT_REPO_BRANCH" \
+    || log "WARNING: git update failed"
+elif [[ -n $(ls -A "$APP_DIR") ]]; then
+  log "WARNING: $APP_DIR is not empty and not a git repository, clone skipped"
+else
+  log "Cloning $(mask_url "$GIT_REPO_URI") (branch $GIT_REPO_BRANCH)"
+  git clone --branch "$GIT_REPO_BRANCH" -- "$GIT_REPO_URI" . || log "WARNING: git clone failed"
+fi
+
+
+if is_true "${LARAVEL_ENV_ENABLED:-false}"; then
+  section "Laravel env"
+  if [[ -f .env ]]; then
+    if [[ -f .env.old ]]; then
+      log "Env backup: Skipped (.env.old exists already)"
+    else
+      cp -p .env .env.old && log "Env backup: Done"
+    fi
+  fi
+
+  # Values are secrets (APP_KEY, DB_PASSWORD ...): only the keys are logged.
+  (
+    umask 077
+    for var in "${!LARAVEL_@}"; do
+      printf '%s=%s\n' "${var#LARAVEL_}" "${!var}"
+    done > .env
+    chmod 600 .env
+  )
+  log "Envs published to Laravel: $(for var in "${!LARAVEL_@}"; do printf '%s ' "${var#LARAVEL_}"; done)"
+fi
+
+
+if is_true "${COMPOSER_ENABLED:-true}" && [[ -f composer.json ]]; then
+  section "Composer install"
+  # Always install from composer.lock; never update dependencies on boot.
+  composer install --no-interaction --prefer-dist --optimize-autoloader \
+    || log "WARNING: composer install failed"
+fi
+
+
+if is_true "${LARAVEL_MIGRATION_ENABLED:-true}" && [[ -f artisan ]]; then
+  section "Laravel migrations"
+  php artisan migrate --force || log "WARNING: migrations failed"
+fi
+
+
+if [[ -n ${SHELL_STARTUP_SCRIPT:-} ]]; then
+  section "Startup script"
+  if [[ -f .env ]] && ! grep -q '^SHELL_STARTUP_SCRIPT=' .env; then
+    echo "SHELL_STARTUP_SCRIPT=$SHELL_STARTUP_SCRIPT" >> .env
+  fi
+  if [[ -f $SHELL_STARTUP_SCRIPT ]]; then
+    log "Running $SHELL_STARTUP_SCRIPT"
+    bash "$SHELL_STARTUP_SCRIPT" || log "WARNING: $SHELL_STARTUP_SCRIPT exited with $?"
+  else
+    log "$SHELL_STARTUP_SCRIPT not found, skipped"
+  fi
+fi
+
+
+section "Apache config"
+if [[ -z ${APACHE_DOCUMENT_ROOT:-} ]]; then
+  if [[ -f artisan ]]; then APACHE_DOCUMENT_ROOT=$APP_DIR/public; else APACHE_DOCUMENT_ROOT=$APP_DIR; fi
+fi
+export APACHE_DOCUMENT_ROOT
+export APACHE_PORT=${APACHE_PORT:-8080}
+# Apache's maximum (2 GiB). 0 = unlimited.
+export APACHE_LIMIT_REQUEST_BODY=${APACHE_LIMIT_REQUEST_BODY:-2147483647}
+log "DocumentRoot: $APACHE_DOCUMENT_ROOT, port: $APACHE_PORT"
+
+
+# Laravel workers run under supervisord. Scheduler on by default (only when
+# artisan exists), horizon and reverb opt-in.
+section "Supervisord"
+has_artisan=false; [[ -f artisan ]] && has_artisan=true
+export SUPERVISOR_HORIZON=$( [[ $has_artisan == true ]] && bool "${LARAVEL_HORIZON_ENABLED:-false}" || echo false )
+export SUPERVISOR_REVERB=$( [[ $has_artisan == true ]] && bool "${LARAVEL_REVERB_ENABLED:-false}" || echo false )
+export SUPERVISOR_SCHEDULER=$( [[ $has_artisan == true ]] && bool "${LARAVEL_SCHEDULE_ENABLED:-true}" || echo false )
+log "horizon=$SUPERVISOR_HORIZON reverb=$SUPERVISOR_REVERB scheduler=$SUPERVISOR_SCHEDULER"
+echo "-------------------------------------"
+
+exec "$@"

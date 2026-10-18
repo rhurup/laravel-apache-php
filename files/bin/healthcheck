@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Healthy when PHP-FPM answers its ping and Apache answers HTTP (any status).
+set -e
+SCRIPT_NAME=/fpm-ping SCRIPT_FILENAME=/fpm-ping REQUEST_METHOD=GET \
+  cgi-fcgi -bind -connect /run/php/php-fpm.sock | grep -q pong
+curl -s -o /dev/null --max-time 4 "http://127.0.0.1:${APACHE_PORT:-8080}/"

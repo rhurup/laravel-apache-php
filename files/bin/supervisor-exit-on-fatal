@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# supervisord event listener: stop supervisord (PID 1) when a core process
+# (php-fpm / apache2) goes FATAL, i.e. supervisord gave up restarting it.
+while true; do
+  printf 'READY\n'
+  read -r header
+  len=$(sed -n 's/.*len:\([0-9]*\).*/\1/p' <<<"$header")
+  read -r -n "$len" payload
+  if [[ $payload =~ processname:(php-fpm|apache2)[[:space:]] ]]; then
+    echo "exit-on-fatal: ${BASH_REMATCH[1]} is FATAL, stopping container" >&2
+    kill -TERM "$(cat /run/supervisor/supervisord.pid)"
+  fi
+  printf 'RESULT 2\nOK'
+done

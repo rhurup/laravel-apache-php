@@ -1,0 +1,42 @@
+# Example setup. Put secrets in a .env file next to this file (never commit it).
+services:
+  laravel:
+    container_name: laravel
+    image: ghcr.io/rhurup/apache-php:8.4
+    restart: always
+    volumes:
+      - "./www:/var/www/:rw"
+    ports:
+      - "8010:8080" # Apache listens on 8080 (non-HTTPS, put a TLS proxy in front)
+    stop_grace_period: 60s # Give horizon/reverb time to finish jobs
+    environment:
+      - SHELL_STARTUP_SCRIPT=deploy.sh # Run on every start, if the file exists
+      - LARAVEL_ENV_ENABLED=true # Write LARAVEL_* vars to /var/www/.env (prefix stripped)
+      - LARAVEL_APP_ENV=local
+      - LARAVEL_APP_URL=http://localhost
+      - LARAVEL_APP_TIMEZONE=Europe/Copenhagen
+      - LARAVEL_APP_KEY=${APP_KEY:?set APP_KEY in .env} # php artisan key:generate --show
+      - LARAVEL_APP_DEBUG=false
+      - LARAVEL_DB_CONNECTION=sqlite
+      - LARAVEL_DB_DATABASE=/var/www/database/database.sqlite
+      - LARAVEL_HORIZON_ENABLED=false # Default false
+      - LARAVEL_REVERB_ENABLED=false # Default false
+      - LARAVEL_SCHEDULE_ENABLED=true # Default true
+      - LARAVEL_REDIS_HOST=redis
+      - LARAVEL_REDIS_PORT=6379
+      - LARAVEL_REDIS_PASSWORD=${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    networks:
+      backend_laravel:
+        aliases:
+          - app
+  laravel_redis:
+    image: redis:7-alpine
+    container_name: laravel_redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    networks:
+      backend_laravel:
+        aliases:
+          - redis
+networks:
+  backend_laravel:
+    name: network_laravel

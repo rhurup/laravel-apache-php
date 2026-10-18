@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+.DS_Store
+.env
+www
+deploy.lock
+docker-compose.yml
+README.md
