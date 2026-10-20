@@ -76,7 +76,7 @@ jobs:
 
   dockerhub-description:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -93,3 +93,15 @@ jobs:
           short-description: "Apache + PHP-FPM + Composer + Node image for Laravel. PHP 8.3 / 8.4 / 8.5, runs as non-root."
           readme-filepath: ./README.md
           enable-url-completion: true
+
+      # rhuruphansen/laravel is the image's old name and no longer receives
+      # builds; point anyone landing there to the new image.
+      - name: Mark old Docker Hub repository as moved
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/laravel
+          short-description: "Moved to rhuruphansen/laravel-apache-php. This image is no longer updated."
+          readme-filepath: ./.github/dockerhub-moved.md
