@@ -3,4 +3,7 @@ set -e
 # shellcheck source=/dev/null
 source /etc/apache2/envvars
 rm -f "${APACHE_PID_FILE}"
-exec /usr/sbin/apache2 -DFOREGROUND
+args=(-DFOREGROUND)
+# Emergency switch: reject all multipart requests (breaks file uploads).
+[[ ${APACHE_BLOCK_MULTIPART,,} == true ]] && args+=(-DBLOCK_MULTIPART)
+exec /usr/sbin/apache2 "${args[@]}"
