@@ -6,7 +6,7 @@ Docker image for Laravel (and plain PHP) apps: **Apache 2.4 (mpm_event) + PHP-FP
 - Everything runs as `www-data` (no root, no sudo), and supervisord is PID 1
 - Optional Laravel workers (scheduler, Horizon, Reverb) are switched on and off with env vars
 - Optionally clones or updates the app from git, writes `.env`, runs `composer install` and migrations at startup
-- Has a healthcheck, rebuilds weekly to pick up security updates, and blocks dotfiles (`.env`, `.git`) and project files from being served
+- Has a healthcheck, rebuilds daily to pick up security updates (a build fails rather than publish a PHP older than the latest security release), and blocks dotfiles (`.env`, `.git`) and project files from being served
 
 ## Usage
 
@@ -22,7 +22,7 @@ If `/var/www/artisan` exists, the docroot is `/var/www/public` (Laravel). If it 
 
 | Tag | |
 |---|---|
-| `8.3`, `8.4`, `8.5` | Latest weekly build of that PHP version |
+| `8.3`, `8.4`, `8.5` | Latest daily build of that PHP version |
 | `8.4-20261019` | Fixed build (date-stamped), for pinning in production |
 | `latest` | Same as `8.4` |
 
@@ -68,6 +68,7 @@ If steps 2–6 fail, a warning is logged and startup continues.
 | `APACHE_PORT` | `8080` | Port Apache listens on inside the container |
 | `APACHE_DOCUMENT_ROOT` | auto | Overrides the docroot detection |
 | `APACHE_LIMIT_REQUEST_BODY` | `2147483647` | Max request body in bytes (0 = unlimited) |
+| `APACHE_BLOCK_MULTIPART` | `false` | Emergency switch: reject all `multipart/*` requests (breaks file uploads). For upload-parser vulnerabilities such as PHP2Shell |
 | `PHP_MEMORY_LIMIT` | `512M` | |
 | `PHP_UPLOAD_MAX_FILESIZE` / `PHP_POST_MAX_SIZE` | `2048M` / `2148M` | |
 | `PHP_MAX_EXECUTION_TIME` / `PHP_MAX_INPUT_TIME` | `600` / `600` | |
