@@ -4,7 +4,7 @@
 # The PHP version is a build arg, so one Dockerfile builds every version:
 #   docker build --build-arg PHP_VERSION=8.3 -t laravel-apache-php:8.3 .
 
-ARG NODE_VERSION=22
+ARG NODE_VERSION=26
 ARG COMPOSER_VERSION=2
 
 FROM composer:${COMPOSER_VERSION} AS composer
@@ -53,7 +53,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
       else echo "WARNING: php${PHP_VERSION}-${ext} not available, skipping"; fi; \
     done \
  && apt-get install -y --no-install-recommends \
-      apache2 git openssh-client unzip nano supervisor libfcgi-bin \
+      apache2 git openssh-client unzip nano supervisor libfcgi-bin libatomic1 \
       mysql-client restic sshpass \
       "${pkgs[@]}" \
  && apt-get purge -y software-properties-common \
@@ -69,10 +69,14 @@ RUN command -v php >/dev/null || { echo "ERROR: PHP was not installed"; exit 1; 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+# Newer than the npm bundled with Node. Corepack no longer ships with Node.
+# The tmpfs keeps npm's download cache out of the image.
+ARG NPM_VERSION=12
+RUN --mount=type=tmpfs,target=/root/.npm \
+    ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
- && ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
- && node --version && npm --version
+ && npm install -g "npm@${NPM_VERSION}" corepack \
+ && node --version && npm --version && corepack --version
 
 # www-data gets the host UID/GID so bind mounts keep sane ownership.
 RUN userdel -r ubuntu 2>/dev/null || true \

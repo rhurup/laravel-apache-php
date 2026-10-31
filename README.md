@@ -37,7 +37,8 @@ docker build --build-arg PHP_VERSION=8.5 --build-arg USER_ID=$(id -u) --build-ar
 | `PHP_VERSION` | `8.4` | Any version in the ondrej PPA (8.3+ for the config syntax used) |
 | `PHP_EXTENSIONS` | see Dockerfile | Package names without the `phpX.Y-` prefix. Packages that don't exist for that version are skipped |
 | `USER_ID` / `GROUP_ID` | `1000` | UID/GID of `www-data`, set it to match the host user that owns the bind mount |
-| `NODE_VERSION` | `22` | Copied from the official `node` image |
+| `NODE_VERSION` | `26` | Copied from the official `node` image |
+| `NPM_VERSION` | `12` | Installed on top of the npm bundled with Node |
 
 ## Startup (entrypoint)
 
@@ -88,6 +89,7 @@ If steps 2–6 fail, a warning is logged and startup continues.
 - **Shutdown**: Horizon gets up to an hour to finish its jobs, but Docker only waits 10 seconds by default. Set `stop_grace_period` to match.
 - **Coverage**: pcov is installed but turned off. To use it: `php -d pcov.enabled=1 vendor/bin/phpunit --coverage-text`.
 - **Node**: available on `PATH` as `node`, `npm`, `npx` and `corepack` (nvm is no longer used).
+- **npm 12** blocks dependency install scripts and git or tarball-URL dependencies by default. A package that needs a build step at install, such as a native module, won't get one until you run `npm install-scripts approve` and commit the policy, or use a different `NPM_VERSION`.
 
 ## License
 
