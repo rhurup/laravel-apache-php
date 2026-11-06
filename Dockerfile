@@ -54,7 +54,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
     done \
  && apt-get install -y --no-install-recommends \
       apache2 git openssh-client unzip nano supervisor libfcgi-bin libatomic1 \
-      mysql-client restic sshpass \
+      mysql-client sshpass bzip2 \
       "${pkgs[@]}" \
  && apt-get purge -y software-properties-common \
  && apt-get autoremove -y \
@@ -77,6 +77,21 @@ RUN --mount=type=tmpfs,target=/root/.npm \
  && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
  && npm install -g "npm@${NPM_VERSION}" corepack \
  && node --version && npm --version && corepack --version
+
+# restic from its own releases, checked against the published checksums.
+# Ubuntu's package is built with an old Go, which scanners flag with dozens
+# of Go standard library CVEs.
+ARG RESTIC_VERSION=0.19.1
+ARG TARGETARCH
+RUN base="https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}" \
+ && asset="restic_${RESTIC_VERSION}_linux_${TARGETARCH}.bz2" \
+ && curl -fsSL -o "/tmp/${asset}" "${base}/${asset}" \
+ && curl -fsSL -o /tmp/SHA256SUMS "${base}/SHA256SUMS" \
+ && (cd /tmp && grep " ${asset}\$" SHA256SUMS | sha256sum -c -) \
+ && bunzip2 -c "/tmp/${asset}" > /usr/local/bin/restic \
+ && chmod 0755 /usr/local/bin/restic \
+ && rm -f "/tmp/${asset}" /tmp/SHA256SUMS \
+ && restic version
 
 # www-data gets the host UID/GID so bind mounts keep sane ownership.
 RUN userdel -r ubuntu 2>/dev/null || true \

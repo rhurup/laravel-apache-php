@@ -54,6 +54,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Resolve latest restic version
+        id: restic
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "version=$(gh api repos/restic/restic/releases/latest -q .tag_name | sed 's/^v//')" >> "$GITHUB_OUTPUT"
+
       - name: Compute tags
         id: tags
         run: |
@@ -77,8 +83,12 @@ jobs:
             PHP_VERSION=${{ matrix.php }}
             PHP_MIN_VERSION=${{ matrix.min }}
             APT_CACHE_BUST=${{ steps.tags.outputs.date }}
+            RESTIC_VERSION=${{ steps.restic.outputs.version }}
           tags: ${{ steps.tags.outputs.tags }}
           push: ${{ github.event_name != 'pull_request' }}
+          # SBOM and full provenance let Docker Scout analyse the exact packages.
+          sbom: true
+          provenance: mode=max
           pull: true
           cache-from: type=gha,scope=php-${{ matrix.php }}
           cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}
