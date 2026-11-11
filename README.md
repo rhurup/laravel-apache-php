@@ -25,12 +25,17 @@ If `/var/www/artisan` exists, the docroot is `/var/www/public` (Laravel). If it 
 | `8.3`, `8.4`, `8.5` | Latest daily build of that PHP version |
 | `8.4-20261019` | Fixed build (date-stamped), for pinning in production |
 | `latest` | Same as `8.4` |
+| `dev`, `8.4-dev`, `8.4-dev-20261111` | `8.4` plus the system libraries Playwright's browsers need (`npx playwright install-deps`). For tests and development, not production |
+
+The `dev` image only adds the system libraries for Chromium, Firefox and WebKit. The browsers are tied to the Playwright version, so install them per project, e.g. `npx playwright install chromium`.
 
 ### Build your own
 
 ```bash
 docker build --build-arg PHP_VERSION=8.5 --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t laravel-apache-php:8.5 .
 ```
+
+Add `--target dev` for the development variant with Playwright's system libraries.
 
 | Build arg | Default | |
 |---|---|---|

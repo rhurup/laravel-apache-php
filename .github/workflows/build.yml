@@ -68,11 +68,16 @@ jobs:
             images="$images docker.io/$(echo "$DOCKERHUB_USERNAME" | tr '[:upper:]' '[:lower:]')/laravel-apache-php"
           fi
           tags=""
+          dev_tags=""
           for image in $images; do
             tags="$tags,$image:${{ matrix.php }},$image:${{ matrix.php }}-$(date -u +%Y%m%d)"
-            if [ "${{ matrix.php }}" = "$LATEST_PHP" ]; then tags="$tags,$image:latest"; fi
+            if [ "${{ matrix.php }}" = "$LATEST_PHP" ]; then
+              tags="$tags,$image:latest"
+              dev_tags="$dev_tags,$image:dev,$image:${{ matrix.php }}-dev,$image:${{ matrix.php }}-dev-$(date -u +%Y%m%d)"
+            fi
           done
           echo "tags=${tags#,}" >> "$GITHUB_OUTPUT"
+          echo "dev_tags=${dev_tags#,}" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
@@ -92,6 +97,33 @@ jobs:
           pull: true
           cache-from: type=gha,scope=php-${{ matrix.php }}
           cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+
+      # Development variant with Playwright's system libraries, for the
+      # latest PHP only. Reuses the layers of the build above.
+      - name: Build dev variant
+        if: matrix.php == env.LATEST_PHP
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dev
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            PHP_VERSION=${{ matrix.php }}
+            PHP_MIN_VERSION=${{ matrix.min }}
+            APT_CACHE_BUST=${{ steps.tags.outputs.date }}
+            RESTIC_VERSION=${{ steps.restic.outputs.version }}
+          tags: ${{ steps.tags.outputs.dev_tags }}
+          push: ${{ github.event_name != 'pull_request' }}
+          sbom: true
+          provenance: mode=max
+          pull: true
+          cache-from: |
+            type=gha,scope=php-${{ matrix.php }}
+            type=gha,scope=php-${{ matrix.php }}-dev
+          cache-to: type=gha,mode=max,scope=php-${{ matrix.php }}-dev
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT

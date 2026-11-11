@@ -10,7 +10,7 @@ ARG COMPOSER_VERSION=2
 FROM composer:${COMPOSER_VERSION} AS composer
 FROM node:${NODE_VERSION}-bookworm-slim AS node
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS runtime
 
 ARG PHP_VERSION=8.4
 ARG USER_ID=1000
@@ -141,3 +141,21 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+
+# Development variant (tag "dev"): adds the system libraries Playwright's
+# browsers (Chromium, Firefox, WebKit) need, so tests and agents don't have to
+# install them in every container. The browsers themselves are version
+# specific, so they're still installed per project (npx playwright install,
+# as www-data).
+#   docker build --target dev -t laravel-apache-php:dev .
+FROM runtime AS dev
+USER root
+# install-deps runs apt-get update itself. The packages come from Ubuntu's own
+# archive, so this step doesn't depend on the PHP PPA being reachable.
+RUN --mount=type=tmpfs,target=/root/.npm \
+    npx -y playwright@latest install-deps \
+ && rm -rf /var/lib/apt/lists/*
+USER www-data
+
+# The production image stays the default build target.
+FROM runtime
